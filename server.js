@@ -58,7 +58,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(generalLimiter);
 
 // ─── API Routes ───────────────────────────────────────────
-app.use('/api/auth/login', authRoutes);
+app.use('/api/login', authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/brands', brandRoutes);
