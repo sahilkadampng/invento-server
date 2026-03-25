@@ -24,7 +24,9 @@ const enforceWarehouse = (req, res, next) => {
     return next();
   }
 
-  const warehouseId = req.user.warehouseId;
+  // `req.user.warehouseId` can be either a raw ObjectId/string or a populated object.
+  const warehouseRef = req.user.warehouseId;
+  const warehouseId = warehouseRef?._id || warehouseRef;
 
   if (!warehouseId) {
     return res.status(403).json({

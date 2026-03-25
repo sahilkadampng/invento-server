@@ -11,6 +11,8 @@ const csv = require('csv-parser');
 const { Readable } = require('stream');
 const streamifier = require('streamifier');
 
+const normalizeBarcode = (value) => String(value || '').trim();
+
 // Helper: strip empty strings from optional ObjectId fields
 const REF_FIELDS = ['brand', 'supplier', 'category'];
 const cleanRefFields = (obj) => {
@@ -292,7 +294,15 @@ const bulkImport = async (req, res, next) => {
  */
 const getByBarcode = async (req, res, next) => {
   try {
-    const product = await Product.findOne({ barcode: req.params.barcode, isActive: true, ...req.warehouseFilter })
+    const normalizedBarcode = normalizeBarcode(req.params.barcode);
+    const product = await Product.findOne({
+      isActive: true,
+      ...req.warehouseFilter,
+      $or: [
+        { barcode: normalizedBarcode },
+        { barcode: req.params.barcode },
+      ],
+    })
       .populate('category', 'name')
       .populate('brand', 'name')
       .populate('supplier', 'name')

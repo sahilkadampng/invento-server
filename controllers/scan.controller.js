@@ -17,6 +17,8 @@ const scanDetailsSchema = z.object({
   sellingPrice: z.number().min(0, 'Selling price must be at least 0'),
 });
 
+const normalizeBarcode = (value) => String(value || '').trim();
+
 /**
  * POST /api/scan
  * Receive a barcode from the camera scanner.
@@ -26,15 +28,26 @@ const scanDetailsSchema = z.object({
 const processScan = async (req, res, next) => {
   try {
     const { barcode } = scanSchema.parse(req.body);
+    const normalizedBarcode = normalizeBarcode(barcode);
     const warehouseId = req.user.warehouseId?._id || req.user.warehouseId;
 
     // 1. Try to find existing product in this warehouse
-    let product = await Product.findOne({ barcode, isActive: true, ...req.warehouseFilter });
+    let product = await Product.findOne({
+      isActive: true,
+      ...req.warehouseFilter,
+      $or: [
+        { barcode: normalizedBarcode },
+        { barcode },
+      ],
+    });
     let isNew = false;
 
     if (product) {
       // ── Existing product → increment stock ──
       product.stockQty += 1;
+      if (product.barcode !== normalizedBarcode) {
+        product.barcode = normalizedBarcode;
+      }
       await product.save();
     } else {
       // ── New product → find/create "Uncategorized" category, then create product ──
@@ -50,7 +63,7 @@ const processScan = async (req, res, next) => {
 
       product = await Product.create({
         name: 'New Product',
-        barcode,
+        barcode: normalizedBarcode,
         sku: generateSKU('GEN'),
         category: category._id,
         stockQty: 1,
@@ -71,7 +84,7 @@ const processScan = async (req, res, next) => {
       entity: 'Product',
       entityId: product._id,
       changes: {
-        after: { barcode, stockQty: product.stockQty, scannedAt: new Date() },
+        after: { barcode: normalizedBarcode, stockQty: product.stockQty, scannedAt: new Date() },
       },
       req,
     });
